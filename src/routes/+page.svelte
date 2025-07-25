@@ -5,7 +5,8 @@
 	import * as d3 from 'd3';
 	import { geoAlbersUsa } from 'd3-geo';
 	import { feature } from 'topojson-client';
-	let el: HTMLDivElement;
+
+	let chartElement: HTMLDivElement;
 
 	// Plot all of the states
 	const projection: d3.GeoProjection = geoAlbersUsa();
@@ -16,7 +17,7 @@
 	onMount(() => {
 		// Set up the svg container
 		const chart = d3
-			.select(el)
+			.select(chartElement)
 			.append('svg')
 			.attr('preserveAspectRatio', 'xMinYMin meet')
 			.attr('viewBox', '0 0 960 600')
@@ -50,13 +51,13 @@
 			.attr('r', 5)
 			.attr('fill', '#FED892')
 			.attr('stroke', '#000')
-			.attr('cx', function (d) {
-				return projection(d)[0];
+			.attr('cx', function (coordinate) {
+				return projection(coordinate)[0]; // x coordinate / latitude
 			})
-			.attr('cy', function (d) {
-				return projection(d)[1];
+			.attr('cy', function (coordinate) {
+				return projection(coordinate)[1]; // y coordinate / longitude
 			});
 	});
 </script>
 
-<div bind:this={el} class="chart"></div>
+<div bind:this={chartElement} class="chart"></div>
