@@ -7,6 +7,12 @@
 	import { feature } from 'topojson-client';
 	let el: HTMLDivElement;
 
+	// Plot all of the states
+	const projection: d3.GeoProjection = geoAlbersUsa();
+	const path = d3.geoPath().projection(projection);
+	const states = feature(us as any, (us as any).objects.states).features;
+
+	// D3 code needs to be only onMount so we don't have perf issues
 	onMount(() => {
 		// Set up the svg container
 		const chart = d3
@@ -16,13 +22,14 @@
 			.attr('viewBox', '0 0 960 600')
 			.attr('stroke', '#fff')
 			.attr('fill', '#264653')
+			.on('click', (event) => {
+				// Get the latitude and longitude of the clicked point
+				const clickedCoordinates = projection.invert!(d3.pointer(event));
+				console.log(clickedCoordinates);
+			})
 			.classed('svg-content', true);
 
-		// Plot all of the states
-		const projection = geoAlbersUsa();
-		const path = d3.geoPath().projection(projection);
-		const states = feature(us as any, (us as any).objects.states).features;
-
+		// Load the map data
 		chart
 			.selectAll('path')
 			.data(states)
@@ -30,6 +37,25 @@
 			.append('path')
 			.attr('class', 'states')
 			.attr('d', path);
+
+		// Load the abortion clinic data
+		const clinicPoints = clinics.features.map((clinic) => {
+			return clinic.geometry.coordinates;
+		});
+		chart
+			.selectAll('circle')
+			.data(clinicPoints)
+			.enter()
+			.append('circle')
+			.attr('r', 5)
+			.attr('fill', '#FED892')
+			.attr('stroke', '#000')
+			.attr('cx', function (d) {
+				return projection(d)[0];
+			})
+			.attr('cy', function (d) {
+				return projection(d)[1];
+			});
 	});
 </script>
 
