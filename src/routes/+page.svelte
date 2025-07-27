@@ -8,13 +8,14 @@
 	import { geoDistance } from "d3-geo";
 
 	let chartElement: HTMLDivElement;
+	let closest = {};
+	let showText = false;
 
 	// Plot all of the states
 	const projection: d3.GeoProjection = geoAlbersUsa();
 	const path = d3.geoPath().projection(projection);
 	const states = feature(us as any, (us as any).objects.states).features;
-	let closest = {};
-	let showText = false;
+	
 
 	// D3 code needs to be only onMount so we don't have perf issues
 	onMount(() => {
@@ -37,8 +38,27 @@
 				const clickedCoordinates = projection.invert!(d3.pointer(event));
 				console.log(clickedCoordinates);
 				closest = findShortestDistance(clinicPoints, clickedCoordinates);
+				closest = { ...closest };
 				console.log("Distance (km):", closest.minDistance);
 				console.log("Closest point:", closest.closestClinic);
+				console.log(showText);
+
+			chart.selectAll('.highlight').remove();
+
+			// Draw just the closest one
+			chart
+				.append('circle')
+				.datum(closest.closestClinic)
+				.attr('class', 'highlight')
+				.attr('r', 6)
+				.attr('fill', '#FFBC1F')
+				.attr('stroke', '#0A005F')
+				.attr('cx', function (coordinate) {
+					return projection(coordinate)[0]; // x coordinate / latitude
+				})
+				.attr('cy', function (coordinate) {
+					return projection(coordinate)[1]; // x coordinate / latitude
+				})
 			})
 			.classed('svg-content', true);
 
@@ -51,21 +71,6 @@
 			.attr('class', 'states')
 			.attr('d', path);
 
-		
-		chart
-			.selectAll('circle')
-			.data(clinicPoints)
-			.enter()
-			.append('circle')
-			.attr('r', 4)
-			.attr('fill', '#FFBC1F')
-			.attr('stroke', '#0A005F')
-			.attr('cx', function (coordinate) {
-				return projection(coordinate)[0]; // x coordinate / latitude
-			})
-			.attr('cy', function (coordinate) {
-				return projection(coordinate)[1]; // y coordinate / longitude
-			});
 	});
 
 	function findShortestDistance(clinicPoints, clickedCoordinates) {
@@ -92,13 +97,12 @@
  <!-- Display map, display title here too -->
 <div class = "title">
 How long does it take to drive to the nearest abortion clinic?
-<div class = "caption"> CLICK ANYWHERE TO FIND OUT</div>
-</div>
-<div bind:this={chartElement} class="chart"></div>
-<div class = "title"> {#if showText}
+<p> CLICK ANYWHERE TO FIND OUT</p>
+{#if showText}
 	<p>THE CLOSEST CLINIC OFFERING ABORTION CARE IS A {closest.minDistance} MINUTE DRIVE AWAY.</p>
 	{/if}
 </div>
+<div bind:this={chartElement} class="chart"></div>
 
 
 
@@ -123,6 +127,7 @@ p {
 	line-height: 14px;
 	font-weight: 300;
 	letter-spacing: -2%;
+	opacity: 80%;
 }
 
 .title {
@@ -134,17 +139,6 @@ p {
 	line-height: 40px;
 	font-weight: 300;
 	letter-spacing: -2%;
-}
-
-.caption {
-	width: 280px;
-	font-family: "IBM Plex Mono";
-	font-weight: 400;
-	font-size: 10px;
-	line-height: 20px;
-	font-weight: 300;
-	letter-spacing: -2%;
-	opacity: 80%;
 }
 
 </style>
