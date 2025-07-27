@@ -59,7 +59,8 @@
 		svg.call(zoom);
 
 		// Add an onclick handler to the chart
-		chart.on('click', (event) => {
+		g.on('click', (event) => {
+			console.log('LEVI: Clicked on the map');
 			// Get the latitude and longitude of the clicked point
 			showText = true;
 			const clickedCoordinates = projection.invert!(d3.pointer(event));
@@ -69,11 +70,10 @@
 			console.log('Distance (km):', closest.minDistance);
 			console.log('Closest point:', closest.closestClinic);
 			console.log(showText);
-			chart.selectAll('.highlight').remove();
+			g.selectAll('.highlight').remove();
 
 			// Draw just the closest one
-			chart
-				.append('circle')
+			g.append('circle')
 				.datum(closest.closestClinic)
 				.attr('class', 'highlight')
 				.attr('r', 6)
@@ -149,7 +149,7 @@
 		left: 0;
 		width: 100%;
 		height: 100%;
-		z-index: -1;
+		z-index: 1;
 	}
 
 	:global(svg.svg-content) {
@@ -164,10 +164,10 @@
 	}
 
 	p {
-		width: 280px;
+		width: 350px;
 		font-family: 'IBM Plex Mono';
 		font-weight: 400;
-		font-size: 10px;
+		font-size: 12px;
 		line-height: 14px;
 		font-weight: 300;
 		letter-spacing: -2%;
@@ -176,12 +176,15 @@
 
 	.title {
 		padding: 20px;
-		width: 280px;
+		width: 350px;
 		font-family: 'Instrument Serif', serif;
 		font-style: normal;
-		font-size: 36px;
+		font-size: 42px;
 		line-height: 40px;
 		font-weight: 300;
 		letter-spacing: -2%;
+		display: block;
+		position: relative;
+		z-index: 2;
 	}
 </style>
