@@ -388,6 +388,10 @@
 		z-index: 2;
 		background-color: #0a005f;
 		color: #fff;
+
+		p {
+			margin-bottom: 0;
+		}
 	}
 
 	.drive {
