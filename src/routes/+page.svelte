@@ -12,6 +12,9 @@
 		minDistance: number;
 	};
 
+	const width = 960;
+	const height = 600;
+
 	let chartElement: HTMLDivElement;
 	let closest: Closest = { closestClinic: null, minDistance: Infinity };
 	let showText = false;
@@ -20,6 +23,29 @@
 	const projection: d3.GeoProjection = geoAlbersUsa();
 	const path = d3.geoPath().projection(projection);
 	const states = feature(us as any, (us as any).objects.states).features;
+	const counties = feature(us as any, (us as any).objects.counties).features;
+	let zoomLevel = 1;
+	let g: d3.Selection<SVGGElement, unknown, null, undefined>;
+
+	// Panning and zooming functionality
+	const zoom = d3
+		.zoom()
+		.on('zoom', function (event) {
+			g.attr('transform', event.transform);
+			zoomLevel = event.transform.k;
+
+			if (zoomLevel > 6) {
+				d3.selectAll('.counties-group path').style('opacity', 1);
+			} else {
+				d3.selectAll('.counties-group path').style('opacity', 0);
+			}
+		})
+		.on('start', function () {
+			d3.select(this).classed('dragging', true);
+		})
+		.on('end', function () {
+			d3.select(this).classed('dragging', false);
+		});
 
 	// D3 code needs to be only onMount so we don't have perf issues
 	onMount(() => {
@@ -32,63 +58,95 @@
 		const chart = d3
 			.select(chartElement)
 			.append('svg')
-			.attr('viewBox', '0 0 960 600')
+			.attr('viewBox', `0 0 ${width} ${height}`)
 			.attr('preserveAspectRatio', 'xMidYMid meet')
 			.attr('stroke', '#0A005F')
 			.attr('fill', '#F9F9F9')
 			.classed('svg-content', true);
 
 		// Plot all of the states
-		const g = chart.append('g');
+		g = chart.append('g');
 		const svg = d3.select('svg');
 		g.selectAll('path').data(states).enter().append('path').attr('class', 'states').attr('d', path);
 
-		// Panning and zooming functionality
-		const zoom = d3
-			.zoom()
-			.on('zoom', function (event) {
-				g.attr('transform', event.transform);
-			})
-			.on('start', function () {
-				d3.select(this).classed('dragging', true);
-			})
-			.on('end', function () {
-				d3.select(this).classed('dragging', false);
-			});
+		// Draw the counties
+		const countiesGroup = g.append('g').attr('class', 'counties-group');
+		countiesGroup
+			.selectAll('path')
+			.data(counties)
+			.enter()
+			.append('path')
+			.attr('d', path)
+			.attr('fill', 'none')
+			.attr('stroke', '#0A005F')
+			.attr('stroke-width', 0.1)
+			.style('opacity', 0)
+			.style('pointer-events', 'none');
 
-		svg.call(zoom);
+		const initialTransform = d3.zoomIdentity.translate(0, 90);
+		svg.call(zoom).call(zoom.transform, initialTransform);
 
 		// Add an onclick handler to the chart
 		g.on('click', (event) => {
-			console.log('LEVI: Clicked on the map');
 			// Get the latitude and longitude of the clicked point
 			showText = true;
 			const clickedCoordinates = projection.invert!(d3.pointer(event));
-			console.log(clickedCoordinates);
 			closest = findShortestDistance(clinicPoints, clickedCoordinates);
 			closest = { ...closest };
-			console.log('Distance (km):', closest.minDistance);
-			console.log('Closest point:', closest.closestClinic);
-			console.log(showText);
 			g.selectAll('.highlight').remove();
+			const lineBounds = [closest.closestClinic, clickedCoordinates];
 
 			const drivePath = {
-				type: "LineString",
-				coordinates: [closest.closestClinic, clickedCoordinates],
+				type: 'LineString',
+				coordinates: lineBounds
 			};
 
-			// Draw path between clicked point and clinic
+			if (!closest.closestClinic || !clickedCoordinates) {
+				showText = false;
+				return;
+			}
+
+			// Zoom to the line
+			const clinicCoords = projection(closest.closestClinic);
+			const clickedCoords = projection(clickedCoordinates);
+
+			if (!clinicCoords || !clickedCoords) {
+				console.warn('Projection failed — skipping zoom.');
+				return;
+			}
+
+			const x0 = clinicCoords![0];
+			const y0 = clinicCoords![1];
+			const x1 = clickedCoords![0];
+			const y1 = clickedCoords![1];
+			const dx = x1 - x0;
+			const dy = y1 - y0;
+
+			const scale = Math.min(8, 0.9 / Math.max(Math.abs(dx) / width, Math.abs(dy) / height));
+			const tx = (x0 + x1) / 2;
+			const ty = (y0 + y1) / 2;
+
 			svg
-				.append('path')
+				.transition()
+				.duration(750)
+				.call(
+					zoom.transform,
+					d3.zoomIdentity
+						.translate(width / 2, height / 2)
+						.scale(scale)
+						.translate(-tx, -ty)
+				);
+
+			// Draw path between clicked point and clinic
+			g.append('path')
 				.datum(drivePath)
 				.attr('d', d3.geoPath().projection(projection)) // projection must be set
 				.attr('class', 'highlight')
 				.attr('stroke', '#0A005F')
 				.attr('stroke-width', 1)
 				.attr('fill', 'none');
-			
-			svg
-				.append('circle')
+
+			g.append('circle')
 				.datum(clickedCoordinates)
 				.attr('class', 'highlight')
 				.attr('r', 2)
@@ -117,8 +175,6 @@
 					const projected = projection(d);
 					return projected ? projected[1] : 0;
 				});
-
-			
 		});
 	});
 
@@ -151,19 +207,54 @@
 		return { closestClinic, minDistance };
 	}
 
-	//  $: closest = findShortestDistance(clinicPoints, clickedCoordinates).toFixed(1);
+	function resetZoom() {
+		console.log('reset zoom');
+		const svg = d3.select('svg');
+		const initialTransform = d3.zoomIdentity.translate(0, 90);
+		svg.transition().duration(750).call(zoom.transform, initialTransform);
+		showText = false;
+		closest = { closestClinic: null, minDistance: Infinity };
+		d3.selectAll('.highlight').remove();
+	}
+
+	/**
+	 * Format the time in hours/minutes into a more readable format.
+	 * @param minutes
+	 */
+	function getFormattedTime(minutes: number): string {
+		if (minutes < 60) {
+			return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+		}
+		const hours = Math.floor(minutes / 60);
+		const remainingMinutes = Math.round(minutes % 60);
+		return `${hours} hour${hours === 1 ? '' : 's'} ${remainingMinutes} minute${remainingMinutes === 1 ? '' : 's'}`;
+	}
 </script>
 
 <!-- Display map, display title here too -->
 <div class="title">
 	How long does it take to drive to the nearest abortion clinic?
 	{#if !showText}
-	<p>CLICK ANYWHERE TO FIND OUT</p>
+		<p>CLICK ANYWHERE TO FIND OUT</p>
 	{/if}
 	{#if showText}
-		<p>THE CLOSEST CLINIC OFFERING ABORTION CARE IS A {closest.minDistance} MINUTE DRIVE AWAY.</p>
+		<p class="distance">
+			THE CLOSEST CLINIC OFFERING ABORTION CARE IS A {getFormattedTime(closest.minDistance)} DRIVE AWAY.
+		</p>
 	{/if}
 </div>
+
+<button class="reset" on:click={resetZoom}>
+	<p>Reset zoom</p>
+</button>
+
+<footer>
+	<p><a href="https://www.ansirh.org/abortion-facility-database" target="_blank">source</a></p>
+	<p>
+		<a href="https://leviv.cool/">Levi</a> & <a href="https://www.queeniwu.com/">Queenie</a> @
+		<a href="https://itp.nyu.edu/lowres/">IMA Low-Res</a>
+	</p>
+</footer>
 <div bind:this={chartElement} class="chart"></div>
 
 <style>
@@ -171,6 +262,9 @@
 		width: 100%;
 		height: 100%;
 		background-color: #0a005f;
+		color: #fff;
+		margin: 0;
+		padding: 0;
 	}
 
 	:global(.dragging) {
@@ -192,11 +286,6 @@
 		display: block;
 	}
 
-	div {
-		background-color: #0a005f;
-		color: #fff;
-	}
-
 	p {
 		width: 350px;
 		font-family: 'IBM Plex Mono';
@@ -205,11 +294,12 @@
 		line-height: 14px;
 		font-weight: 300;
 		letter-spacing: -2%;
-		opacity: 80%;
+		text-transform: uppercase;
 	}
 
 	.title {
 		padding: 20px;
+		margin: 10px;
 		width: 350px;
 		font-family: 'Instrument Serif', serif;
 		font-style: normal;
@@ -220,5 +310,57 @@
 		display: block;
 		position: relative;
 		z-index: 2;
+		background-color: #0a005f;
+		color: #fff;
+	}
+
+	.reset {
+		position: absolute;
+		bottom: 0;
+		right: 0;
+		background-color: #0a005f;
+		color: #fff;
+		border: none;
+		margin: 10px;
+		padding: 10px 20px;
+		width: fit-content;
+		z-index: 2;
+
+		&:hover {
+			cursor: pointer;
+			font-style: italic;
+		}
+
+		p {
+			padding: 0;
+			margin: 0;
+			width: fit-content;
+		}
+	}
+
+	footer {
+		position: absolute;
+		z-index: 2;
+		bottom: 0;
+		left: 0;
+		color: #fff;
+		margin: 10px;
+		display: flex;
+		gap: 20px;
+
+		p {
+			width: fit-content;
+			background-color: #0a005f;
+			padding: 10px 20px;
+			margin: 0;
+
+			a {
+				color: #fff;
+
+				&:hover {
+					font-style: italic;
+				}
+			}
+		}
 	}
 </style>
