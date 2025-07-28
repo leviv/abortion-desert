@@ -81,7 +81,7 @@
 			.append('path')
 			.attr('d', path)
 			.attr('fill', 'none')
-			.attr('stroke', '#0A005F')
+			.attr('stroke', '#817DAC')
 			.attr('stroke-width', 0.1)
 			.style('opacity', 0)
 			.style('pointer-events', 'none');
@@ -229,7 +229,7 @@
 				.attr('font-family', 'IBM Plex Mono')
 				.attr('text-transform', 'uppercase')
 				.attr('font-weight', '300')
-				.text((d) => `~${d} drive`.toUpperCase());
+				.text((d) => `~${d}`.toUpperCase());
 		});
 	});
 
@@ -252,7 +252,7 @@
 
 		for (const point of clinicPoints) {
 			const radians = geoDistance(point, clickedCoordinates);
-			const distanceKm = radians * 6371; // times by earth's radius in km
+			const distanceKm = radians * 6371 * 2; // times by earth's radius in km, double for round trip
 
 			if (distanceKm < minDistance) {
 				minDistance = Math.floor(distanceKm * 100) / 100;
@@ -273,7 +273,7 @@
 	}
 
 	/**
-	 * Format the time in hours/minutes into a more readable format.
+	 * Format the time in hours/minutes into a more readable format. // bruh this changes the grammar
 	 * @param minutes
 	 */
 	function getFormattedTime(minutes: number): string {
@@ -296,14 +296,15 @@
 
 <!-- Display map, display title here too -->
 <div class="title">
-	How long does it take to drive to the nearest abortion clinic?
 	{#if !showText}
-		<p>CLICK ANYWHERE TO FIND OUT</p>
+	How long does it take to drive to the nearest abortion clinic?
+	<p>CLICK ANYWHERE TO FIND OUT</p>
 	{/if}
 	{#if showText}
-		<p class="distance">
-			THE CLOSEST CLINIC OFFERING ABORTION CARE IS A {getFormattedTime(closest.minDistance)} DRIVE AWAY.
-		</p>
+		
+			A round trip to the closest abortion care takes about {getFormattedTime(closest.minDistance)} by car.
+		
+		<p>CLICK ANOTHER SPOT TO COMPARE</p>
 	{/if}
 </div>
 
@@ -372,16 +373,17 @@
 		font-weight: 300;
 		letter-spacing: -2%;
 		text-transform: uppercase;
+		opacity: 80%;
 	}
 
 	.title {
-		padding: 20px;
+		padding: 24px;
 		margin: 10px;
 		width: 350px;
 		font-family: 'Instrument Serif', serif;
 		font-style: normal;
 		font-size: 42px;
-		line-height: 40px;
+		line-height: 42px;
 		font-weight: 300;
 		letter-spacing: -2%;
 		display: block;
@@ -481,13 +483,14 @@
 		color: #fff;
 		margin: 10px;
 		display: flex;
-		gap: 20px;
+		gap: 12px;
 
 		p {
 			width: fit-content;
 			background-color: #0a005f;
-			padding: 10px 20px;
+			padding: 10px 16px;
 			margin: 0;
+			opacity: 100%;
 
 			a {
 				color: #fff;
