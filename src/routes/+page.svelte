@@ -26,6 +26,8 @@
 	const counties = feature(us as any, (us as any).objects.counties).features;
 	let zoomLevel = 1;
 	let g: d3.Selection<SVGGElement, unknown, null, undefined>;
+	let driveProgress = 0;
+	let driveInterval: number | null = null;
 
 	// Panning and zooming functionality
 	const zoom = d3
@@ -34,7 +36,8 @@
 			g.attr('transform', event.transform);
 			zoomLevel = event.transform.k;
 
-			if (zoomLevel > 6) {
+			// Show or hide counties based on zoom level
+			if (zoomLevel > 4.99) {
 				d3.selectAll('.counties-group path').style('opacity', 1);
 			} else {
 				d3.selectAll('.counties-group path').style('opacity', 0);
@@ -88,11 +91,32 @@
 
 		// Add an onclick handler to the chart
 		g.on('click', (event) => {
+			// Clear previous progress and timer
+			if (driveInterval) {
+				clearInterval(driveInterval);
+				driveInterval = null;
+			}
+			driveProgress = 0;
+
 			// Get the latitude and longitude of the clicked point
 			showText = true;
 			const clickedCoordinates = projection.invert!(d3.pointer(event));
 			closest = findShortestDistance(clinicPoints, clickedCoordinates);
 			closest = { ...closest };
+
+			// Start drive animation
+			const tickInterval = 10;
+			const animationDuration = (closest.minDistance * 60 * 1000) / tickInterval;
+
+			driveInterval = setInterval(() => {
+				driveProgress += (tickInterval / animationDuration) * 100;
+				if (driveProgress >= 100) {
+					driveProgress = 100;
+					clearInterval(driveInterval);
+					driveInterval = null;
+				}
+			}, tickInterval);
+
 			g.selectAll('.highlight').remove();
 			const lineBounds = [closest.closestClinic, clickedCoordinates];
 
@@ -122,7 +146,7 @@
 			const dx = x1 - x0;
 			const dy = y1 - y0;
 
-			const scale = Math.min(8, 0.9 / Math.max(Math.abs(dx) / width, Math.abs(dy) / height));
+			const scale = Math.min(5, 0.9 / Math.max(Math.abs(dx) / width, Math.abs(dy) / height));
 			const tx = (x0 + x1) / 2;
 			const ty = (y0 + y1) / 2;
 
@@ -175,6 +199,37 @@
 					const projected = projection(d);
 					return projected ? projected[1] : 0;
 				});
+
+			const midX = (x0 + x1) / 2;
+			const midY = (y0 + y1) / 2;
+			const deltaX = x0 - x1;
+			const deltaY = y0 - y1;
+			const radians = Math.atan2(deltaY, deltaX);
+			let degrees = (radians * 180) / Math.PI;
+			if (degrees > 90 || degrees < -90) {
+				degrees += 180;
+			}
+
+			// Add text along the line
+			g.append('text')
+				.datum(getFormattedTime(closest.minDistance))
+				.attr('class', 'highlight label')
+				.attr('transform', `rotate(${degrees}, ${midX}, ${midY})`)
+				.attr('x', () => {
+					return midX;
+				})
+				.attr('y', () => {
+					return midY - 10;
+				})
+				.attr('text-anchor', 'middle')
+				.attr('font-size', '8px')
+				.attr('stroke-width', 0.3)
+				.attr('fill', '#fff')
+				.attr('outline-color', '#0A005F')
+				.attr('font-family', 'IBM Plex Mono')
+				.attr('text-transform', 'uppercase')
+				.attr('font-weight', '300')
+				.text((d) => `~${d} drive`.toUpperCase());
 		});
 	});
 
@@ -231,6 +286,14 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Abortion Deserts</title>
+	<meta
+		name="description"
+		content="How long does it take to drive to the nearest abortion clinic?"
+	/>
+</svelte:head>
+
 <!-- Display map, display title here too -->
 <div class="title">
 	How long does it take to drive to the nearest abortion clinic?
@@ -247,6 +310,19 @@
 <button class="reset" on:click={resetZoom}>
 	<p>Reset zoom</p>
 </button>
+
+{#if showText}
+	<div class="drive">
+		<p>0</p>
+		<div class="progress-container">
+			<p>sped up 10x</p>
+			<div class="progress">
+				<div class="driven" style="height: {driveProgress}%"></div>
+			</div>
+		</div>
+		<p>{closest.minDistance} min</p>
+	</div>
+{/if}
 
 <footer>
 	<p><a href="https://www.ansirh.org/abortion-facility-database" target="_blank">source</a></p>
@@ -312,6 +388,60 @@
 		z-index: 2;
 		background-color: #0a005f;
 		color: #fff;
+	}
+
+	.drive {
+		position: absolute;
+		margin: 26px;
+		gap: 10px;
+		top: 0;
+		right: 0;
+		height: calc(100% - 34px);
+		display: flex;
+		justify-content: center;
+		width: 20px;
+		flex-direction: column;
+		align-items: center;
+		z-index: 2;
+
+		p {
+			margin: 0;
+			padding: 3px 5px;
+			width: fit-content;
+			text-align: center;
+			background-color: #0a005f;
+		}
+		.progress-container {
+			display: flex;
+			flex-direction: row;
+			height: 80%;
+			width: 100%;
+			position: relative;
+
+			p {
+				position: absolute;
+				top: calc(50% - 21px);
+				right: 35px;
+				margin: 0;
+				padding: 3px 5px;
+			}
+
+			.progress {
+				height: 100%;
+				width: 100%;
+				border: 1px solid #fff;
+				background-color: #0a005f;
+
+				.driven {
+					height: 20%;
+					width: 100%;
+					background-color: #fff;
+					transition: width 0.5s ease-in-out;
+					border: 1px solid #0a005f;
+					box-sizing: border-box;
+				}
+			}
+		}
 	}
 
 	.reset {
