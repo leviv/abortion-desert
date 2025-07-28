@@ -17,6 +17,7 @@
 		"@eslint/compat": "^1.2.5",
 		"@eslint/js": "^9.18.0",
 		"@sveltejs/adapter-auto": "^6.0.0",
+		"@sveltejs/adapter-static": "^3.0.8",
 		"@sveltejs/kit": "^2.22.0",
 		"@sveltejs/vite-plugin-svelte": "^6.0.0",
 		"@types/d3": "^7.4.3",
@@ -37,5 +38,6 @@
 		"d3": "^7.9.0",
 		"d3-geo": "^3.1.1",
 		"topojson-client": "^3.1.0"
-	}
+	},
+	"packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"
 }
