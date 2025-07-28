@@ -72,6 +72,36 @@
 			console.log(showText);
 			g.selectAll('.highlight').remove();
 
+			const drivePath = {
+				type: "LineString",
+				coordinates: [closest.closestClinic, clickedCoordinates],
+			};
+
+			// Draw path between clicked point and clinic
+			svg
+				.append('path')
+				.datum(drivePath)
+				.attr('d', d3.geoPath().projection(projection)) // projection must be set
+				.attr('class', 'highlight')
+				.attr('stroke', '#0A005F')
+				.attr('stroke-width', 1)
+				.attr('fill', 'none');
+			
+			svg
+				.append('circle')
+				.datum(clickedCoordinates)
+				.attr('class', 'highlight')
+				.attr('r', 2)
+				.attr('fill', '#0A005F')
+				.attr('cx', (d) => {
+					const projected = projection(d);
+					return projected ? projected[0] : 0;
+				})
+				.attr('cy', (d) => {
+					const projected = projection(d);
+					return projected ? projected[1] : 0;
+				});
+
 			// Draw just the closest one
 			g.append('circle')
 				.datum(closest.closestClinic)
@@ -87,6 +117,8 @@
 					const projected = projection(d);
 					return projected ? projected[1] : 0;
 				});
+
+			
 		});
 	});
 
@@ -125,7 +157,9 @@
 <!-- Display map, display title here too -->
 <div class="title">
 	How long does it take to drive to the nearest abortion clinic?
+	{#if !showText}
 	<p>CLICK ANYWHERE TO FIND OUT</p>
+	{/if}
 	{#if showText}
 		<p>THE CLOSEST CLINIC OFFERING ABORTION CARE IS A {closest.minDistance} MINUTE DRIVE AWAY.</p>
 	{/if}
